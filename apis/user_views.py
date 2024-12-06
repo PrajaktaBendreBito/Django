@@ -1,41 +1,41 @@
+from django.shortcuts import render
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.db import connection
 from django.contrib.auth.models import User
-from django.views.decorators.http import require_http_methods
-from django.db.models import Q
+from django.db.models import Q, Count
 
-# Bug 1: Using function-based views instead of class-based views
-@require_http_methods(["GET"])
-def get_user_details(request, user_id):
-    # Bug 2: Direct ORM query outside repository
-    user = User.objects.filter(id=user_id).first()
-    return JsonResponse({
-        'id': user.id,
-        'username': user.username,
-        'email': user.email
-    })
+# Violation 1: Function-based view instead of class-based
+def get_users(request):
+    # Violation 2: Direct ORM query in view
+    users = User.objects.all()
+    return JsonResponse({'users': list(users.values())})
 
-# Bug 3: Another function-based view with direct queries
-@require_http_methods(["GET"])
+# Violation 3: Raw SQL in view
+def get_active_users(request):
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT * FROM auth_user 
+            WHERE is_active = True
+        """)
+        rows = cursor.fetchall()
+    return JsonResponse({'active_users': rows})
+
+# Violation 4: Complex queries outside repository
 def search_users(request):
     query = request.GET.get('q', '')
-    # Bug 4: Complex ORM query outside repository
+    # Violation: Complex ORM query in view
     users = User.objects.filter(
         Q(username__icontains=query) |
         Q(email__icontains=query)
-    ).values('id', 'username', 'email')
-    return JsonResponse({'users': list(users)})
+    ).annotate(
+        login_count=Count('login_logs')
+    )
+    return JsonResponse({'results': list(users.values())})
 
-# Bug 5: Raw SQL query in view
-@require_http_methods(["GET"])
-def get_active_users(request):
-    from django.db import connection
-    with connection.cursor() as cursor:
-        # Bug 6: Direct SQL query outside repository
-        cursor.execute("""
-            SELECT id, username, email 
-            FROM auth_user 
-            WHERE is_active = true
-        """)
-        rows = cursor.fetchall()
-    return JsonResponse({'users': rows})
+# Violation 5: Direct model manipulation
+def update_user_status(request, user_id):
+    # Violation: Direct model update
+    user = User.objects.get(id=user_id)
+    user.is_active = not user.is_active
+    user.save()
+    return JsonResponse({'status': 'success'})
