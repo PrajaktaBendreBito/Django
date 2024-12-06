@@ -1,11 +1,15 @@
-from django.urls import path, include
-import apis.views as api_view
-from django.contrib import admin
-
+from django.urls import path
+from . import views
 
 urlpatterns = [
-    path('details/', api_view.DetailView.as_view()),
-    path('attendance/', api_view.AttendanceView.as_view()),
-    path('marks/', api_view.MarksView.as_view()),
-    path('timetable/', api_view.TimetableView.as_view()),
+    # Basic page routes
+    path('', views.home, name='home'),
+    path('submit/', views.submit_form, name='submit_form'),
+    path('display/', views.display_data, name='display_data'),
+    
+    # API route
+    path('api/data/', views.get_api_data, name='get_api_data'),
 ]
+
+# Register error handlers
+handler404 = views.handler404
